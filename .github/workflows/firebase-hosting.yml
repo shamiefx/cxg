@@ -1,0 +1,43 @@
+name: Deploy to Firebase Hosting
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build static export
+        run: npm run build:static
+        env:
+          NEXT_PUBLIC_SALE_ADDRESS: ${{ secrets.NEXT_PUBLIC_SALE_ADDRESS }}
+          NEXT_PUBLIC_CXG_TOKEN_ADDRESS: ${{ secrets.NEXT_PUBLIC_CXG_TOKEN_ADDRESS }}
+          NEXT_PUBLIC_TOKEN_SYMBOL: ${{ secrets.NEXT_PUBLIC_TOKEN_SYMBOL }}
+          NEXT_PUBLIC_TOKEN_NAME: ${{ secrets.NEXT_PUBLIC_TOKEN_NAME }}
+
+      - name: Deploy to Firebase Hosting and Firestore
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_COIN_OF_GOLD }}
+          projectId: coin-of-gold
+          channelId: live
+        env:
+          FIREBASE_CLI_EXPERIMENTS: webframeworks

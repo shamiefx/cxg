@@ -1,0 +1,115 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
+
+    match /users/{uid} {
+      // Reads
+      // Allow owner to get their own profile
+      allow get: if isOwner(uid) || (isSignedIn() && resource.data.referredByUid == request.auth.uid);
+      // Allow listing ONLY docs where the caller is the referrer (downlines).
+      // Important: the client must query with where('referredByUid', '==', auth.uid).
+      allow list: if isSignedIn() && resource.data.referredByUid == request.auth.uid;
+
+      // CREATE: owner-only; whitelist fields; validate referral against existing user doc (UID string)
+      allow create: if isOwner(uid)
+        && request.resource.data.keys().hasOnly([
+          'uid','email','displayName','photoURL','createdAt','updatedAt','emailVerified','referral','referredByUid'
+        ])
+        && request.resource.data.uid == request.auth.uid
+        // If email is provided, it must match token email (when token has one)
+        && (
+          !('email' in request.resource.data) ||
+          (request.auth.token.email != null && request.resource.data.email == request.auth.token.email)
+        )
+        // displayName optional on create, but if present it must be valid
+        && (
+          !('displayName' in request.resource.data) ||
+          (request.resource.data.displayName is string &&
+           request.resource.data.displayName.size() > 0 &&
+           request.resource.data.displayName.size() <= 50)
+        )
+        // photoURL optional
+        && (!('photoURL' in request.resource.data) || request.resource.data.photoURL is string)
+        // emailVerified optional
+        && (!('emailVerified' in request.resource.data) || request.resource.data.emailVerified is bool)
+        // referral optional; if present must not self-refer and sponsor must already exist
+        && (
+          !('referral' in request.resource.data) ||
+          (
+            request.resource.data.referral is string &&
+            request.resource.data.referral.size() > 0 &&
+            request.resource.data.referral != request.auth.uid &&
+            exists(/databases/$(database)/documents/users/$(request.resource.data.referral))
+          )
+        )
+        // referredByUid optional but must equal referral when both are present
+        && (
+          !('referredByUid' in request.resource.data) ||
+          request.resource.data.referredByUid == request.resource.data.referral
+        );
+
+      // UPDATE: owner-only; only allow safe fields to change; keep immutables locked
+      allow update: if isOwner(uid)
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'displayName','photoURL','updatedAt','emailVerified'
+        ])
+        // If displayName is present, validate it
+        && (
+          !('displayName' in request.resource.data) ||
+          (request.resource.data.displayName is string &&
+           request.resource.data.displayName.size() > 0 &&
+           request.resource.data.displayName.size() <= 50)
+        )
+        // If photoURL present, must be string
+        && (!('photoURL' in request.resource.data) || request.resource.data.photoURL is string)
+        // If emailVerified present, must be bool
+        && (!('emailVerified' in request.resource.data) || request.resource.data.emailVerified is bool)
+        // Immutable fields
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.referral == resource.data.referral
+        // updatedAt must be a newer timestamp (allow legacy docs without it)
+        && request.resource.data.updatedAt is timestamp
+        && (!('updatedAt' in resource.data) || resource.data.updatedAt is timestamp)
+        && (!('updatedAt' in resource.data) || request.resource.data.updatedAt > resource.data.updatedAt);
+
+      // Only owner can delete
+      allow delete: if isOwner(uid);
+    }
+
+    // User transactions subcollection
+    match /users/{uid}/transactions/{txId} {
+      // Owner can create their own transaction log
+      allow create: if isOwner(uid);
+      // Owner can read/list their own transactions
+      allow get, list: if isOwner(uid);
+      // Prevent updates/deletes from client (optional)
+      allow update, delete: if false;
+    }
+
+    // Downlines subcollection: allow child to create their own doc under inviter; inviter can read
+    match /users/{inviterUid}/referral/{childUid} {
+      // Create allowed for the child when their user doc confirms the inviter
+      allow create: if isSignedIn()
+        && request.auth.uid == childUid
+        && request.resource.data.uid == childUid
+        && exists(/databases/$(database)/documents/users/$(inviterUid))
+        && get(/databases/$(database)/documents/users/$(childUid)).data.referredByUid == inviterUid;
+
+      // Inviter can read their own downlines
+      allow read: if isSignedIn() && request.auth.uid == inviterUid;
+
+      // No updates/deletes via client (optional hardening)
+      allow update, delete: if false;
+    }
+
+    // deny everything else
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
