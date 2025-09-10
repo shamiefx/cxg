@@ -177,7 +177,7 @@ export default function ProfilePage() {
       setCropBlob(processed);
       setCropPreview(previewUrl);
       setCropOpen(true);
-    } catch (err) {
+  } catch {
       toast.error("Could not prepare image");
       e.target.value = "";
     }
