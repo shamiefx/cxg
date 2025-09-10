@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import NavFrame from "@/components/nav-frame";
+import CanonicalRedirect from "@/components/canonical-redirect";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -35,6 +36,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <div id="app-root" className="app-root">
+          <CanonicalRedirect />
           <NavFrame>
             {children}
           </NavFrame>
