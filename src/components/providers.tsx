@@ -14,7 +14,10 @@ type Props = { children: ReactNode };
 export default function Providers({ children }: Props) {
   // App metadata for WalletConnect deep links (improves mobile UX)
   const appName = (process.env.NEXT_PUBLIC_APP_NAME || "CXGP").trim();
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://coin-of-gold.web.app").trim();
+  // Dynamic site URL for WalletConnect metadata (dev/prod parity)
+  const appUrl = (process.env.NEXT_PUBLIC_SITE_URL
+    || (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000")
+  ).trim();
   // Use an absolute icon URL so WalletConnect deep links always carry a resolvable icon
   const appIconPath = "/vercel.svg"; // keep lightweight default
   const appIcon = appIconPath.startsWith("http")
