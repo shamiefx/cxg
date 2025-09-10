@@ -8,6 +8,15 @@ import { formatUnits, parseEther, parseUnits, formatEther, isAddress } from "vie
 import Providers from "@/components/providers";
 import toast from "react-hot-toast";
 
+// Safe origin detection (avoid cross-origin SecurityError if some wallet/iframe context)
+let topOrigin: string | undefined;
+try {
+  topOrigin = typeof window !== "undefined" ? window.top?.location.origin : undefined;
+} catch {
+  // ignore cross-origin access errors
+}
+const selfOrigin = typeof window !== "undefined" ? window.location.origin : undefined;
+
 const USDT = "0x55d398326f99059fF775485246999027B3197955" as `0x${string}`; // BSC USDT (18d)
 const CXG = ((process.env.NEXT_PUBLIC_CXG_TOKEN_ADDRESS as `0x${string}` | undefined) ||
   "0xA63F08a32639689DfF7b89FC5C12fF89dC687B34") as `0x${string}`;

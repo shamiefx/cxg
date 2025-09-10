@@ -15,8 +15,11 @@ export default function Providers({ children }: Props) {
   // App metadata for WalletConnect deep links (improves mobile UX)
   const appName = (process.env.NEXT_PUBLIC_APP_NAME || "CXGP").trim();
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://coin-of-gold.web.app").trim();
-  // Using a public asset path as a lightweight app icon (optional)
-  const appIcon = "/vercel.svg";
+  // Use an absolute icon URL so WalletConnect deep links always carry a resolvable icon
+  const appIconPath = "/vercel.svg"; // keep lightweight default
+  const appIcon = appIconPath.startsWith("http")
+    ? appIconPath
+    : `${appUrl.replace(/\/$/, "")}${appIconPath}`;
 
   const wcProjectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
   const hasRealWc = !!wcProjectId && wcProjectId !== "demo";
@@ -30,7 +33,7 @@ export default function Providers({ children }: Props) {
       : [metaMaskWallet];
     const groups = [{ groupName: "Popular", wallets }];
     const projectId = hasRealWc ? wcProjectId! : "demo";
-    return connectorsForWallets(groups, {
+  return connectorsForWallets(groups, {
       appName,
       projectId,
       appDescription: "CXGP — Buy, stake, and burn on BSC.",

@@ -46,9 +46,10 @@ html { scroll-behavior: smooth; }
   place-items: center;
   /* Safe-area padding for iOS */
   padding-top: max(16px, env(safe-area-inset-top));
-  padding-right: max(16px, env(safe-area-inset-right));
   padding-bottom: max(16px, env(safe-area-inset-bottom));
-  padding-left: max(16px, env(safe-area-inset-left));
+  /* Keep horizontal padding symmetric to avoid visual drift */
+  padding-left: 16px;
+  padding-right: 16px;
   z-index: 70; /* above header (z-50) and our confirm modal (z-[60]) */
 }
 
@@ -68,7 +69,7 @@ html { scroll-behavior: smooth; }
 /* Fallback centering for RainbowKit containers that use role=document */
 [data-rk] [role="document"] { margin-inline: auto; }
 
-/* Web3Modal centering & transform neutralization (safe even if not used) */
+/* Center Web3Modal reliably */
 #w3m-modal,
 div#w3m-modal {
   position: fixed !important;
@@ -85,7 +86,7 @@ body:has(#w3m-modal) main {
   perspective: none !important;
 }
 
-/* Optional: force dialog centering for Web3Modal variants */
+/* ensure dialog centering */
 #w3m-modal [role="dialog"] {
   display: grid !important;
   place-items: center !important;
@@ -98,5 +99,11 @@ body:has([data-rk] [aria-modal="true"]) main {
   transform: none !important;
   filter: none !important;
   perspective: none !important;
+}
+
+/* Prevent scrollbar compensation shifting content while modal is open */
+body:has([data-rk] [aria-modal="true"]),
+body:has(#w3m-modal) {
+  padding-right: 0 !important;
 }
 
