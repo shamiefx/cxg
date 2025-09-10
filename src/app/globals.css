@@ -37,3 +37,66 @@ html { scroll-behavior: smooth; }
   .wallet button { min-height: 36px; }
 }
 
+/* RainbowKit modal centering + mobile fixes */
+/* Scope to RainbowKit provider tree via [data-rk] to avoid affecting app modals */
+[data-rk] [aria-modal="true"] {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  /* Safe-area padding for iOS */
+  padding-top: max(16px, env(safe-area-inset-top));
+  padding-right: max(16px, env(safe-area-inset-right));
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  padding-left: max(16px, env(safe-area-inset-left));
+  z-index: 70; /* above header (z-50) and our confirm modal (z-[60]) */
+}
+
+[data-rk] [aria-modal="true"] [role="dialog"] {
+  max-width: 420px;
+  width: 100%;
+  max-height: 90dvh;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 16px;
+}
+
+@supports not (height: 100dvh) {
+  [data-rk] [aria-modal="true"] [role="dialog"] { max-height: 90vh; }
+}
+
+/* Fallback centering for RainbowKit containers that use role=document */
+[data-rk] [role="document"] { margin-inline: auto; }
+
+/* Web3Modal centering & transform neutralization (safe even if not used) */
+#w3m-modal,
+div#w3m-modal {
+  position: fixed !important;
+  inset: 0 !important;
+  margin: 0 !important;
+  transform: none !important;
+}
+
+/* If a modal is present, ensure no transforms on app wrapper causing offset */
+body:has(#w3m-modal) .app-root,
+body:has(#w3m-modal) main {
+  transform: none !important;
+  filter: none !important;
+  perspective: none !important;
+}
+
+/* Optional: force dialog centering for Web3Modal variants */
+#w3m-modal [role="dialog"] {
+  display: grid !important;
+  place-items: center !important;
+}
+
+/* Neutralize transforms when RainbowKit modal is open to avoid fixed-position drift */
+body:has([data-rk] [aria-modal="true"]) .app-root,
+body:has([data-rk] [aria-modal="true"]) header,
+body:has([data-rk] [aria-modal="true"]) main {
+  transform: none !important;
+  filter: none !important;
+  perspective: none !important;
+}
+

@@ -446,8 +446,8 @@ export default function ProfilePage() {
         </div>
     {/* Crop preview modal */}
     {cropOpen && (
-      <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm" onClick={() => setCropOpen(false)}>
-        <div className="mx-auto mt-24 w-full max-w-sm px-6" onClick={(e) => e.stopPropagation()}>
+      <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm grid place-items-center" onClick={() => setCropOpen(false)}>
+        <div className="w-full max-w-sm px-6" onClick={(e) => e.stopPropagation()}>
           <div className="rounded-2xl border border-white/10 bg-neutral-950 p-5 shadow-xl">
             <h3 className="text-base font-medium">Preview</h3>
             <div className="mt-3 overflow-hidden rounded-xl ring-1 ring-white/10">

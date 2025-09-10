@@ -230,8 +230,8 @@ export default function Header() {
       </div>
   </header>
     {confirmOpen && (
-      <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm" onClick={() => setConfirmOpen(false)}>
-        <div className="mx-auto mt-28 w-full max-w-sm px-6" onClick={(e) => e.stopPropagation()}>
+      <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm grid place-items-center" onClick={() => setConfirmOpen(false)}>
+        <div className="w-full max-w-sm px-6" onClick={(e) => e.stopPropagation()}>
           <div role="dialog" aria-modal="true" aria-labelledby="logout-title" className="rounded-2xl border border-white/10 bg-neutral-950 p-5 shadow-xl">
             <div className="flex items-start gap-3">
               <div className="mt-0.5 rounded-lg bg-rose-500/15 p-2 text-rose-300">
@@ -251,7 +251,7 @@ export default function Header() {
             </div>
           </div>
         </div>
-      </div>
+  </div>
     )}
     </>
   );

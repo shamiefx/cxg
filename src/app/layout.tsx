@@ -33,12 +33,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <NavFrame>
-          {children}
-        </NavFrame>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <div id="app-root" className="app-root">
+          <NavFrame>
+            {children}
+          </NavFrame>
+        </div>
       </body>
     </html>
   );
