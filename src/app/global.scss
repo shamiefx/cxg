@@ -1,0 +1,15 @@
+/* Fix off-center Radix/RainbowKit dialogs due to transforms/filters up the tree */
+:where(html, body, #__next) {
+  transform: none !important;
+  filter: none !important;
+  perspective: none !important;
+}
+
+/* Force dialog centering */
+[data-radix-portal] [role="dialog"][data-state="open"] {
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  margin: 0 !important;
+}

@@ -10,6 +10,13 @@
       "**/node_modules/**"
     ],
     "cleanUrls": true,
+    "redirects": [
+      {
+        "source": "**",
+        "destination": "https://coin-of-gold.web.app/:splat",
+        "type": 301
+      }
+    ],
     "headers": [
       {
         "source": "**",
