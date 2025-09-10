@@ -141,7 +141,7 @@ export default function Header() {
               <button
                 onClick={() => setConfirmOpen(true)}
                 aria-label="Sign out"
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-rose-400 hover:bg-white/10"
+                className="hidden md:inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-rose-400 hover:bg-white/10"
               >
                 <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-5 w-5">
                   <path d="M12 3v6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
@@ -204,16 +204,7 @@ export default function Header() {
           ) : (
             <div className="flex flex-col gap-2">
               {/* <Link href="/profile" className="hover:text-white">{user.displayName || user.email}</Link> */}
-              <button
-                onClick={() => setConfirmOpen(true)}
-                className="flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-3 py-2 hover:bg-white/10"
-              >
-                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-rose-400">
-                  <path d="M12 3v6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
-                  <path d="M7 6a7 7 0 1 0 10 0" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
-                </svg>
-                Sign out
-              </button>
+              {/* Sign out hidden on small devices */}
               {!hideClientCta && (
                 <Link href="/wallet" className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-white/90 hover:bg-white/10 inline-flex items-center gap-2">
                   <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-yellow-400">
