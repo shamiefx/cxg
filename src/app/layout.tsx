@@ -4,6 +4,7 @@ import "./globals.css";
 import "./global.scss";
 import NavFrame from "@/components/nav-frame";
 import CanonicalRedirect from "@/components/canonical-redirect";
+import CanonicalDomain from "@/components/CanonicalDomain";
 import SecurityGuards from "@/components/security-guards";
 
 const geistSans = Geist({
@@ -76,8 +77,10 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+    <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-dvh bg-black text-white [transform:none] [filter:none] [perspective:none]`}>
         <div id="app-root" className="app-root">
+      {/* Enforce canonical domain */}
+      <CanonicalDomain host="coin-of-gold.web.app" />
           <SecurityGuards />
           <CanonicalRedirect />
           <NavFrame>
