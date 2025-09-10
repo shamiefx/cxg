@@ -21,6 +21,16 @@ body {
 /* Prevent horizontal scroll */
 html, body { overflow-x: hidden; }
 
+/* Fix off-center RainbowKit/Radix dialogs by neutralizing transforms on root ancestors */
+:where(html, body, #__next) {
+  transform: none !important;
+  filter: none !important;
+  perspective: none !important;
+}
+
+/* Ensure proper centering math + prevent text auto-zoom on iOS */
+html { -webkit-text-size-adjust: 100%; }
+
 /* Smooth anchor scrolling for in-page navigation */
 html { scroll-behavior: smooth; }
 
@@ -38,22 +48,25 @@ html { scroll-behavior: smooth; }
 }
 
 /* RainbowKit modal centering + mobile fixes */
-/* Scope to RainbowKit provider tree via [data-rk] to avoid affecting app modals */
-[data-rk] [aria-modal="true"] {
-  position: fixed;
-  inset: 0;
-  display: grid;
-  place-items: center;
+/* Match both descendant and same-element variants, since RainbowKit often sets data-rk on the dialog element itself */
+[data-rk] [aria-modal="true"],
+[data-rk][aria-modal="true"] {
+  position: fixed !important;
+  inset: 0 !important;
+  display: grid !important;
+  place-items: center !important;
   /* Safe-area padding for iOS */
   padding-top: max(16px, env(safe-area-inset-top));
   padding-bottom: max(16px, env(safe-area-inset-bottom));
   /* Keep horizontal padding symmetric to avoid visual drift */
   padding-left: 16px;
   padding-right: 16px;
-  z-index: 70; /* above header (z-50) and our confirm modal (z-[60]) */
+  z-index: 100 !important; /* above header/tooltips */
+  transform: none !important;
 }
 
-[data-rk] [aria-modal="true"] [role="dialog"] {
+[data-rk] [aria-modal="true"] [role="dialog"],
+[data-rk][aria-modal="true"][role="dialog"] {
   max-width: 420px;
   width: 100%;
   max-height: 90dvh;
@@ -63,11 +76,22 @@ html { scroll-behavior: smooth; }
 }
 
 @supports not (height: 100dvh) {
-  [data-rk] [aria-modal="true"] [role="dialog"] { max-height: 90vh; }
+  [data-rk] [aria-modal="true"] [role="dialog"],
+  [data-rk][aria-modal="true"][role="dialog"] { max-height: 90vh; }
 }
 
 /* Fallback centering for RainbowKit containers that use role=document */
-[data-rk] [role="document"] { margin-inline: auto; }
+[data-rk] [role="document"],
+[data-rk][role="document"] {
+  margin-inline: auto !important;
+  display: block;
+}
+
+/* Additional nudge for specific RainbowKit container class variants (defensive) */
+[data-rk] .ju367v15[role="document"],
+[data-rk] ._9pm4ki5[role="document"] {
+  margin: 0 auto !important;
+}
 
 /* Center Web3Modal reliably */
 #w3m-modal,
@@ -92,10 +116,17 @@ body:has(#w3m-modal) main {
   place-items: center !important;
 }
 
+#w3m-modal [role="dialog"] > * {
+  margin: 0 auto !important;
+}
+
 /* Neutralize transforms when RainbowKit modal is open to avoid fixed-position drift */
 body:has([data-rk] [aria-modal="true"]) .app-root,
 body:has([data-rk] [aria-modal="true"]) header,
-body:has([data-rk] [aria-modal="true"]) main {
+body:has([data-rk] [aria-modal="true"]) main,
+body:has([data-rk][aria-modal="true"]) .app-root,
+body:has([data-rk][aria-modal="true"]) header,
+body:has([data-rk][aria-modal="true"]) main {
   transform: none !important;
   filter: none !important;
   perspective: none !important;

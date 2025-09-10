@@ -223,7 +223,7 @@ export default function ProfilePage() {
       try { await updateProfile(authUser, { photoURL: null as unknown as undefined }); } catch {}
       setPhotoURL("");
       toast.success("Photo removed");
-    } catch (err) {
+    } catch {
       toast.error("Could not remove photo");
     } finally {
       setUploading(false);
