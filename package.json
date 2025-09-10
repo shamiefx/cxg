@@ -3,10 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
-  "build": "next build --turbopack",
-  "build:static": "next build --turbopack",
-  "build:silent": "next build --turbopack > /dev/null 2>&1",
+  "dev": "next dev",
+  "build": "next build",
+  "build:static": "next build",
+  "build:silent": "next build > /dev/null 2>&1",
+  "build-and-dev": "npm run build --silent && npm run dev",
+  "dev:after-build": "npm run build --silent && npm run dev",
   "deploy:firebase": "npm run build:static && firebase deploy",
     "start": "next start",
     "lint": "eslint"
@@ -18,6 +20,7 @@
     "next": "15.5.2",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+  "react-hot-toast": "^2.4.1",
     "viem": "^2.37.3",
     "wagmi": "^2.16.9"
   },

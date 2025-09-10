@@ -21,11 +21,12 @@ import Providers from "@/components/providers";
 //   NEXT_PUBLIC_TOKEN_SYMBOL (e.g. "CXGP")
 //   NEXT_PUBLIC_TOKEN_NAME   (e.g. "Token for Gold")
 // Fallbacks preserve existing UI if env vars not provided.
-const TOKEN_SYMBOL = (process.env.NEXT_PUBLIC_TOKEN_SYMBOL || "CXG+").trim();
-const TOKEN_NAME = (process.env.NEXT_PUBLIC_TOKEN_NAME || "Token for Gold").trim();
+const TOKEN_SYMBOL = (process.env.NEXT_PUBLIC_TOKEN_SYMBOL || "CXGP").trim();
+const TOKEN_NAME = (process.env.NEXT_PUBLIC_TOKEN_NAME || "Coin of Gold").trim();
 const SALE = (process.env.NEXT_PUBLIC_SALE_ADDRESS as `0x${string}` | undefined) || "0x02b0364a53f2D82d8EcBB4ccF058A44784f0dc3c" as const;
 const USDT = "0x55d398326f99059fF775485246999027B3197955" as `0x${string}`; // 18 decimals on BSC
-const CXG = (process.env.NEXT_PUBLIC_CXG_TOKEN_ADDRESS as `0x${string}` | undefined);
+const CXG = ((process.env.NEXT_PUBLIC_CXG_TOKEN_ADDRESS as `0x${string}` | undefined) ||
+  "0xA63F08a32639689DfF7b89FC5C12fF89dC687B34") as `0x${string}`;
 
 // Minimal ABIs
 const saleAbi = [
@@ -38,6 +39,7 @@ const saleAbi = [
 ] as const;
 
 const erc20Abi = [
+  { type: "function", name: "decimals", inputs: [], outputs: [ { type: "uint8" } ], stateMutability: "view" },
   { type: "function", name: "approve", inputs: [ { name: "spender", type: "address" }, { name: "amount", type: "uint256" } ], outputs: [ { type: "bool" } ], stateMutability: "nonpayable" },
   { type: "function", name: "balanceOf", inputs: [ { name: "account", type: "address" } ], outputs: [ { type: "uint256" } ], stateMutability: "view" },
   { type: "function", name: "totalSupply", inputs: [], outputs: [ { type: "uint256" } ], stateMutability: "view" },
@@ -57,114 +59,7 @@ function extractErrMsg(err: unknown): string {
   return "Transaction failed";
 }
 
-// Lightweight SVG line chart using GeckoTerminal OHLCV API (no extra deps)
-// Docs example endpoint (public):
-// https://api.geckoterminal.com/api/v2/networks/bsc/pools/<POOL_ADDRESS>/ohlcv/1h?aggregate=1&limit=72
-function GeckoOhlcvChart({
-  pool,
-  network = "bsc",
-  interval = "1h",
-  limit = 72,
-  height = 160,
-}: {
-  pool: string;
-  network?: string;
-  interval?: "5m" | "15m" | "1h" | "4h" | "1d";
-  limit?: number;
-  height?: number;
-}) {
-  const [points, setPoints] = useState<Array<{ t: number; c: number }>>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const ctrl = new AbortController();
-    async function load() {
-      try {
-        setLoading(true);
-        setError(null);
-        const url = `https://api.geckoterminal.com/api/v2/networks/${network}/pools/${pool}/ohlcv/${interval}?aggregate=1&limit=${limit}`;
-        const res = await fetch(url, { signal: ctrl.signal, headers: { accept: "application/json" } });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        // Prefer attributes.ohlcv_list if present; fallback to attributes.ohlcv
-        type OhlcvRow = [number, number, number, number, number, number];
-        const raw = json?.data?.attributes?.ohlcv_list ?? json?.data?.attributes?.ohlcv ?? [];
-        const list = (Array.isArray(raw) ? raw : []) as unknown as OhlcvRow[];
-        const mapped = list
-          .map((row) => ({ t: Number(row[0]) * 1000, c: Number(row[4]) })) // [ts, o, h, l, c, v]
-          .filter((p) => Number.isFinite(p.t) && Number.isFinite(p.c));
-        setPoints(mapped);
-      } catch (e) {
-        if (e && typeof e === "object" && (e as { name?: string }).name === "AbortError") return;
-        setError(extractErrMsg(e));
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-    return () => ctrl.abort();
-  }, [network, pool, interval, limit]);
-
-  if (loading) {
-    return <div className="mt-4 text-sm text-white/70">Loading chart…</div>;
-  }
-  if (error || points.length < 2) {
-    return (
-      <div className="mt-4 text-sm text-white/70">
-        Chart data unavailable right now.
-      </div>
-    );
-  }
-
-  // Build responsive SVG path
-  const W = 600; // viewBox width; actual rendered width will be 100%
-  const H = height;
-  const closes = points.map((p) => p.c);
-  let min = Math.min(...closes);
-  let max = Math.max(...closes);
-  if (min === max) {
-    // Avoid divide by zero; add small epsilon
-    const eps = min === 0 ? 1 : min * 0.01;
-    min -= eps;
-    max += eps;
-  }
-  const n = points.length;
-  const toXY = (i: number) => {
-    const x = (i / (n - 1)) * W;
-    const y = H - ((points[i].c - min) / (max - min)) * H;
-    return [x, y] as const;
-  };
-  let d = "";
-  for (let i = 0; i < n; i++) {
-    const [x, y] = toXY(i);
-    d += (i === 0 ? "M" : " L") + x.toFixed(2) + " " + y.toFixed(2);
-  }
-  const last = closes[closes.length - 1];
-  const first = closes[0];
-  const pct = ((last - first) / first) * 100;
-
-  return (
-    <div className="mt-4">
-      <div className="mb-2 flex items-center gap-2 text-sm">
-        <span className="text-white/80">Last:</span>
-        <span className="font-medium">{last.toLocaleString()}</span>
-        <span className={pct >= 0 ? "text-emerald-400" : "text-rose-400"}>
-          ({pct >= 0 ? "+" : ""}{pct.toFixed(2)}%)
-        </span>
-      </div>
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} role="img" aria-label="Price chart">
-        <defs>
-          <linearGradient id="gt-stroke" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#facc15" />
-            <stop offset="100%" stopColor="#f59e0b" />
-          </linearGradient>
-        </defs>
-        <path d={d} fill="none" stroke="url(#gt-stroke)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-      </svg>
-    </div>
-  );
-}
+// Chart removed per request
 
 function ClientContent() {
   const { address, isConnected } = useAccount();
@@ -179,6 +74,7 @@ function ClientContent() {
   const [checking, setChecking] = useState(true);
   const [recentTxs, setRecentTxs] = useState<Tx[]>([]);
   const [lastSuccess, setLastSuccess] = useState<{ tx: Tx; meta?: TxMeta } | null>(null);
+  const [holderCount, setHolderCount] = useState<number | null>(null);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
@@ -195,15 +91,36 @@ function ClientContent() {
   }, [checking, user, router]);
 
   // Balances
-  const { data: bnbBal } = useBalance({ address, query: { enabled: !!address } });
-  const { data: usdtBal } = useBalance({ address, token: USDT, query: { enabled: !!address } });
-  const { data: cxgBal } = useBalance({ address, token: CXG, query: { enabled: !!address && !!CXG } });
+  const { data: bnbBal } = useBalance({ address, chainId: 56, query: { enabled: !!address } });
+  const { data: usdtBal } = useBalance({ address, token: USDT, chainId: 56, query: { enabled: !!address } });
+  const { data: cxgBal } = useBalance({ address, token: CXG, chainId: 56, query: { enabled: !!address && !!CXG } });
 
   const bnbBalanceWei = bnbBal?.value ?? 0n;
-  const fmt4 = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 });
-  const bnbFormatted4 = useMemo(() => bnbBal ? fmt4(Number(formatUnits(bnbBal.value, bnbBal.decimals))) : "—", [bnbBal]);
-  const usdtFormatted4 = useMemo(() => usdtBal ? fmt4(Number(formatUnits(usdtBal.value, usdtBal.decimals))) : "—", [usdtBal]);
-  const cxgFormatted4 = useMemo(() => cxgBal ? fmt4(Number(formatUnits(cxgBal.value, cxgBal.decimals))) : (CXG ? "—" : "Set NEXT_PUBLIC_CXG_TOKEN_ADDRESS"), [cxgBal, CXG]);
+  const usdtBalanceWei = usdtBal?.value ?? 0n;
+  // Format decimal strings to exactly `decimals` fraction digits with thousands separators (no precision loss)
+  const fmtFixed = (valueStr: string, decimals: number) => {
+    const parts = valueStr.split(".");
+    const intRaw = parts[0] || "0";
+    const fracRaw = parts[1] || "";
+    const frac = (fracRaw + "0".repeat(decimals)).slice(0, decimals);
+    const int = intRaw.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    return `${int}.${frac}`;
+  };
+  const bnbFormatted18 = useMemo(() => {
+    if (!bnbBal) return "—";
+    const s = formatUnits(bnbBal.value, bnbBal.decimals);
+    return fmtFixed(s, 8);
+  }, [bnbBal]);
+  const usdtFormatted18 = useMemo(() => {
+    if (!usdtBal) return "—";
+    const s = formatUnits(usdtBal.value, usdtBal.decimals);
+    return fmtFixed(s, 8);
+  }, [usdtBal]);
+  const cxgFormatted18 = useMemo(() => {
+    if (!cxgBal) return (CXG ? "—" : "Set NEXT_PUBLIC_CXG_TOKEN_ADDRESS");
+    const s = formatUnits(cxgBal.value, cxgBal.decimals);
+    return fmtFixed(s, 8);
+  }, [cxgBal]);
   const BNB_SPEND_CAP_PCT = 80n; // 80%
   const GAS_PAD_PCT = 20n; // +20% buffer
 
@@ -234,39 +151,82 @@ function ClientContent() {
   const bnbR3 = bnbSplitQuote.data ? bnbSplitQuote.data[3] : 0n;
 
   // Remaining supply
-  const { data: cxgSupplyWeiRaw } = useReadContract({
-    address: CXG,
-    abi: erc20Abi,
-    functionName: "balanceOf",
-    args: [SALE],
-    query: { enabled: !!CXG },
-  });
+  // (removed balanceOf(SALE) supply tracking)
   const { data: cxgTotalSupplyRaw } = useReadContract({
     address: CXG,
     abi: erc20Abi,
     functionName: "totalSupply",
+    chainId: 56,
     query: { enabled: !!CXG },
   });
-  // Prefer balanceOf(SALE) if token supply for sale is stored there; fallback to totalSupply
-  const saleSupplyWei = ((cxgSupplyWeiRaw as bigint | undefined) ?? null);
-  const totalSupplyWei = ((cxgTotalSupplyRaw as bigint | undefined) ?? null);
-  // Use Sale Supply when > 0; if it's 0, fallback to Total Supply; if Sale is null, also fallback to Total
-  const availableSupplyWei = (
-    saleSupplyWei === null
-      ? totalSupplyWei
-      : (saleSupplyWei === 0n ? totalSupplyWei : saleSupplyWei)
-  );
-
-  // Quote per 1 BNB/USDT to derive max spend by supply
-  const ONE = parseEther("1");
-  const { data: cxgPer1BnbRaw } = useReadContract({
-    address: SALE,
-    abi: saleAbi,
-    functionName: "quoteTokensForBNB",
-    args: [ONE],
-    query: { enabled: true },
+  const { data: cxgDecimalsRaw } = useReadContract({
+    address: CXG,
+    abi: erc20Abi,
+    functionName: "decimals",
+    chainId: 56,
+    query: { enabled: !!CXG },
   });
-  const cxgPer1Bnb = (cxgPer1BnbRaw as bigint | undefined) ?? 0n;
+  // Token supply (for display only; purchases do not enforce supply caps)
+  // totalSupplyWei available if needed for future logic
+
+  // Displayed Supply: token totalSupply (from contract), formatted 4dp
+  const supplyFormatted18 = useMemo(() => {
+    if (cxgTotalSupplyRaw) {
+      const d = typeof cxgDecimalsRaw === "number" ? cxgDecimalsRaw : (cxgDecimalsRaw ? Number(cxgDecimalsRaw as unknown as bigint) : 18);
+      const s = formatUnits(cxgTotalSupplyRaw as bigint, d);
+      return fmtFixed(s, 8);
+    }
+    return "—";
+  }, [cxgTotalSupplyRaw, cxgDecimalsRaw]);
+
+  // Holders count (prefer BscScan; fallback to Etherscan v2)
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const keyEth = process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY;
+        const keyBsc = process.env.NEXT_PUBLIC_BSCSCAN_API_KEY;
+        if (!CXG) { if (!cancelled) setHolderCount(null); return; }
+        let count: number | null = null;
+        // 1) Try BscScan v1 if key present
+        if (keyBsc) {
+          const urlV1 = `https://api.bscscan.com/api?module=token&action=tokenholdercount&contractaddress=${CXG}&apikey=${keyBsc}`;
+          try {
+            const r1 = await fetch(urlV1);
+            if (r1.ok) {
+              const j1 = await r1.json();
+              if (j1 && j1.status === "1" && j1.result) {
+                const n = Number(j1.result);
+                if (Number.isFinite(n)) count = n;
+              }
+            }
+          } catch { /* ignore */ }
+        }
+        // 2) Fallback to Etherscan v2 multi-chain if needed
+        if ((count === null || !Number.isFinite(count)) && keyEth) {
+          const urlV2 = `https://api.etherscan.io/v2/api?chainid=56&module=token&action=tokenholdercount&contractaddress=${CXG}&apikey=${keyEth}`;
+          try {
+            const res = await fetch(urlV2);
+            if (res.ok) {
+              const json = await res.json();
+              const val = (json && (json.result ?? json.data ?? json.count)) as unknown;
+              if (typeof val === "string") count = Number(val);
+              if (typeof val === "number") count = val;
+            }
+          } catch { /* ignore */ }
+        }
+        if (!cancelled) setHolderCount((count !== null && Number.isFinite(count)) ? count : null);
+      } catch {
+        if (!cancelled) setHolderCount(null);
+      }
+    }
+    load();
+    const t = setInterval(load, 120000); // refresh every 2 minutes
+    return () => { cancelled = true; clearInterval(t); };
+  }, []);
+  const holdersDisplay = useMemo(() => holderCount !== null ? holderCount.toLocaleString() : "—", [holderCount]);
+
+  // Quote per 1 BNB/USDT was used for max-by-supply; removed to avoid unused reads
 
   // Gas estimation state
   const [gasPriceWei, setGasPriceWei] = useState<bigint | null>(null);
@@ -320,20 +280,16 @@ function ClientContent() {
 
   // Derived gas costs in BNB (wei)
   const bnbBuyGasCostWei = useMemo(() => (bnbBuyGasUnits && gasPriceWei) ? bnbBuyGasUnits * gasPriceWei : null, [bnbBuyGasUnits, gasPriceWei]);
-  const bnbBuyGasCostPaddedWei = useMemo(() => bnbBuyGasCostWei ? (bnbBuyGasCostWei * (100n + GAS_PAD_PCT)) / 100n : null, [bnbBuyGasCostWei]);
+  const bnbBuyGasCostPaddedWei = useMemo(() => bnbBuyGasCostWei ? (bnbBuyGasCostWei * (100n + GAS_PAD_PCT)) / 100n : null, [bnbBuyGasCostWei, GAS_PAD_PCT]);
   // const bnbGasLimitPadded = useMemo(() => bnbBuyGasUnits ? (bnbBuyGasUnits * (100n + GAS_PAD_PCT)) / 100n : null, [bnbBuyGasUnits, GAS_PAD_PCT]);
 
   // Enforce 80% cap for BNB spend
-  const bnbCapWei = useMemo(() => (bnbBalanceWei * BNB_SPEND_CAP_PCT) / 100n, [bnbBalanceWei]);
+  const bnbCapWei = useMemo(() => (bnbBalanceWei * BNB_SPEND_CAP_PCT) / 100n, [bnbBalanceWei, BNB_SPEND_CAP_PCT]);
   const bnbOverCap = bnbWei > 0n && bnbWei > bnbCapWei;
 
   // Enforce remaining supply cap for BNB path
-  const bnbExceedsSupply = useMemo(() => (availableSupplyWei !== null && bnbNetTokens > 0n) ? bnbNetTokens > availableSupplyWei : false, [availableSupplyWei, bnbNetTokens]);
-  const bnbMaxBySupplyWei = useMemo(() => {
-    if (availableSupplyWei === null || cxgPer1Bnb === 0n) return null;
-    // maxBNB = supply / (cxg per 1 BNB)
-    return (availableSupplyWei * ONE) / cxgPer1Bnb;
-  }, [availableSupplyWei, cxgPer1Bnb]);
+  // supply caps not enforced
+  // No supply cap enforced for BNB purchases (token is mintable)
 
   const { writeContractAsync: writeAsyncBNB, isPending: isPendingBNB } = useWriteContract();
   const [bnbHash, setBnbHash] = useState<`0x${string}` | undefined>(undefined);
@@ -432,17 +388,9 @@ function ClientContent() {
   const usdtR2 = usdtSplitQuote.data ? usdtSplitQuote.data[2] : 0n;
   const usdtR3 = usdtSplitQuote.data ? usdtSplitQuote.data[3] : 0n;
 
-  // Quote per 1 USDT
-  const ONE_USDT = parseUnits("1", 18);
-  const { data: cxgPer1UsdtRaw } = useReadContract({
-    address: SALE,
-    abi: saleAbi,
-    functionName: "quoteTokensForUSDT",
-    args: [ONE_USDT],
-    query: { enabled: true },
-  });
-  const cxgPer1Usdt = (cxgPer1UsdtRaw as bigint | undefined) ?? 0n;
-  const usdtExceedsSupply = useMemo(() => (availableSupplyWei !== null && usdtNetTokens > 0n) ? usdtNetTokens > availableSupplyWei : false, [availableSupplyWei, usdtNetTokens]);
+  // Removed per-1 USDT quote (unused)
+  // supply caps not enforced
+  // No supply cap enforced for USDT purchases (token is mintable)
 
   // Estimate gas for USDT approve + buy
   useEffect(() => {
@@ -474,8 +422,10 @@ function ClientContent() {
 
   const usdtTotalGasUnits = useMemo(() => (usdtApproveGasUnits ?? 0n) + (usdtBuyGasUnits ?? 0n), [usdtApproveGasUnits, usdtBuyGasUnits]);
   const usdtTotalGasCostWei = useMemo(() => (gasPriceWei ? usdtTotalGasUnits * gasPriceWei : null), [usdtTotalGasUnits, gasPriceWei]);
-  const usdtTotalGasCostPaddedWei = useMemo(() => usdtTotalGasCostWei ? (usdtTotalGasCostWei * (100n + GAS_PAD_PCT)) / 100n : null, [usdtTotalGasCostWei]);
+  const usdtTotalGasCostPaddedWei = useMemo(() => usdtTotalGasCostWei ? (usdtTotalGasCostWei * (100n + GAS_PAD_PCT)) / 100n : null, [usdtTotalGasCostWei, GAS_PAD_PCT]);
   const hasEnoughBnbForUsdtGas = useMemo(() => (usdtTotalGasCostPaddedWei !== null) ? bnbBalanceWei >= usdtTotalGasCostPaddedWei : true, [bnbBalanceWei, usdtTotalGasCostPaddedWei]);
+  const hasSomeUsdt = useMemo(() => usdtBalanceWei > 0n, [usdtBalanceWei]);
+  const hasEnoughUsdt = useMemo(() => usdtAmt <= usdtBalanceWei, [usdtAmt, usdtBalanceWei]);
   // const usdtApproveGasLimitPadded = useMemo(() => usdtApproveGasUnits ? (usdtApproveGasUnits * (100n + GAS_PAD_PCT)) / 100n : null, [usdtApproveGasUnits, GAS_PAD_PCT]);
   // const usdtBuyGasLimitPadded = useMemo(() => usdtBuyGasUnits ? (usdtBuyGasUnits * (100n + GAS_PAD_PCT)) / 100n : null, [usdtBuyGasUnits, GAS_PAD_PCT]);
 
@@ -574,9 +524,21 @@ function ClientContent() {
       try {
         const q = query(collection(db, "users", user.uid, "transactions"), orderBy("createdAt", "desc"), limit(10));
         const snaps = await getDocs(q);
+        type FirestoreTxDoc = Partial<Tx>;
         const rows: Tx[] = snaps.docs.map(d => {
-          const data = d.data() as Partial<Tx>;
-          return { id: d.id, type: data.type ?? "", inputCurrency: data.inputCurrency, inputAmount: data.inputAmount, cxgExpected: data.cxgExpected, gross: (data as any).gross, r1: (data as any).r1, r2: (data as any).r2, r3: (data as any).r3, hash: (data.hash as string) ?? d.id };
+          const data = d.data() as unknown as FirestoreTxDoc;
+            return {
+              id: d.id,
+              type: data.type ?? "",
+              inputCurrency: data.inputCurrency,
+              inputAmount: data.inputAmount,
+              cxgExpected: data.cxgExpected,
+              gross: data.gross,
+              r1: data.r1,
+              r2: data.r2,
+              r3: data.r3,
+              hash: (data.hash as string) ?? d.id,
+            };
         });
         setRecentTxs(rows);
       } catch {
@@ -606,38 +568,59 @@ function ClientContent() {
   return (
     <div className="min-h-dvh px-6 py-12">
       <div className="mx-auto max-w-3xl">
+        {/* Header */}
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold tracking-tight">{isConnected ? "Connected" : "Client Area"}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {isConnected ? `Connected – ${TOKEN_NAME}` : `${TOKEN_NAME} Client Area`}
+          </h1>
           <ConnectButton />
         </div>
 
+        {/* Balances */}
         <div className="mt-8 grid gap-6 md:grid-cols-2">
-          {/* Balances */}
           <div className="rounded-2xl border border-white/10 bg-white/5 p-6 md:col-span-2">
             <h2 className="text-lg font-medium">Balances</h2>
-            <div className="mt-3 grid grid-cols-1 sm:grid-cols-4 gap-4 text-sm">
-              <div className="rounded-lg border border-white/10 p-3">
-                <div className="text-white/60">BNB</div>
-                <div className="text-white text-right">{bnbFormatted4}</div>
-              </div>
-              <div className="rounded-lg border border-white/10 p-3">
-                <div className="text-white/60">USDT</div>
-                <div className="text-white text-right">{usdtFormatted4}</div>
-              </div>
-              <div className="rounded-lg border border-white/10 p-3">
-                <div className="text-white/60">{TOKEN_SYMBOL}</div>
-                <div className="text-white text-right">{cxgFormatted4}</div>
-              </div>
-              <div className="rounded-lg border border-white/10 p-3">
-                <div className="text-white/60">Supply</div>
-                <div className="text-white text-right">{availableSupplyWei !== null ? fmt4(Number(formatEther(availableSupplyWei))) : "—"}</div>
-              </div>
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-5 gap-4 text-sm">
+              {[
+                { label: "BNB", value: bnbFormatted18 },
+                { label: "USDT", value: usdtFormatted18 },
+                { label: TOKEN_SYMBOL, value: cxgFormatted18 },
+                { label: "Supply", value: supplyFormatted18 },
+                { label: "Holders", value: holderCount !== null ? holdersDisplay : "—" },
+              ].map(({ label, value }) => (
+                <div key={label} className="rounded-lg border border-white/10 p-3">
+                  <div className="text-white/60">{label}</div>
+                  <div className="text-white text-right">{value}</div>
+                </div>
+              ))}
             </div>
           </div>
+
+          {/* Sponsor Input */}
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-6 md:col-span-2">
+            <h2 className="text-lg font-medium">Referral Sponsor</h2>
+            <p className="mt-1 text-xs text-white/60">
+              Optional address of your sponsor/upline. Leave blank for none.
+            </p>
+            <input
+              value={sponsor}
+              onChange={(e) => setSponsor(e.target.value.trim())}
+              placeholder="0xSponsorAddress (optional)"
+              className="mt-3 w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-yellow-600"
+            />
+            {sponsor && !isAddress(sponsor) && (
+              <div className="mt-2 text-xs text-rose-400">
+                Invalid address format – will fallback to no sponsor.
+              </div>
+            )}
+            {sponsor && isAddress(sponsor) && sponsorAddr === sponsor && (
+              <div className="mt-2 text-xs text-emerald-400">Valid sponsor captured.</div>
+            )}
+          </div>
+
           {/* BNB Purchase */}
           <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
             <h2 className="text-lg font-medium">Buy with BNB</h2>
-            {/* <p className="mt-1 text-sm text-white/70">Masukkan jumlah BNB untuk dibelanjakan. Di hadkan ke 80% daripada baki. Baki supply: {availableSupplyWei !== null ? Number(formatEther(availableSupplyWei)).toLocaleString() : "—"} CXG.</p> */}
             <div className="mt-4 space-y-3">
               <input
                 value={bnbIn}
@@ -645,45 +628,42 @@ function ClientContent() {
                 placeholder="0.1"
                 className="w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 outline-none focus:ring-2 focus:ring-yellow-600"
               />
-              <div className="flex items-center justify-between text-xs text-white/70">
-                <div>
-                  Maximum 80%: {bnbBal ? Number(formatEther(bnbCapWei)).toFixed(6) : "-"} BNB
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setBnbIn(bnbBal ? Number(formatEther(bnbCapWei)).toFixed(6) : "")}
-                  className="rounded bg-white/10 px-2 py-1 text-white hover:bg-white/20"
-                >Max 80%</button>
-              </div>
-              {/* {bnbMaxBySupplyWei !== null && (
-                <div className="flex items-center justify-between text-xs text-white/70">
-                  <div>Max by supply: {Number(formatEther(bnbMaxBySupplyWei)).toFixed(6)} BNB</div>
-                  <button type="button" onClick={() => setBnbIn(Number(formatEther(bnbMaxBySupplyWei!)).toFixed(6))} className="rounded bg-white/10 px-2 py-1 text-white hover:bg-white/20">Max by supply</button>
-                </div>
-              )} */}
               <div className="text-sm text-white/80">
-                {bnbGrossTokens > 0n ? (
-                  <>You will receive ~{Number(formatEther(bnbNetTokens)).toLocaleString()} {TOKEN_SYMBOL} (net)</>
-                ) : (
-                  <>—</>
-                )}
+                {bnbGrossTokens > 0n
+                  ? <>You will receive ~{Number(formatEther(bnbNetTokens)).toLocaleString()} {TOKEN_SYMBOL} (net)</>
+                  : <>—</>}
               </div>
-              {bnbOverCap && (
-                <div className="text-xs text-red-400">Amount exceeds 80% of your BNB balance.</div>
-              )}
-              {bnbExceedsSupply && (
-                <div className="text-xs text-red-400">Requested {TOKEN_SYMBOL} exceeds available supply.</div>
-              )}
-              {bnbBuyGasCostWei && (
-                <div className="text-xs text-white/70">Estimated gas: ~{Number(formatEther(bnbBuyGasCostWei)).toFixed(6)} BNB {bnbBuyGasCostPaddedWei ? `(+${Number(GAS_PAD_PCT)}%: ${Number(formatEther(bnbBuyGasCostPaddedWei)).toFixed(6)} BNB)` : ''}. Consider keeping a minimum for gas.</div>
-              )}
               <button
                 onClick={handleBuyBNB}
-                disabled={!isConnected || bnbWei <= 0n || isPendingBNB || bnbIsConfirming || bnbOverCap || bnbExceedsSupply}
+                disabled={
+                  !isConnected ||
+                  bnbWei <= 0n ||
+                  isPendingBNB ||
+                  bnbIsConfirming ||
+                  bnbOverCap
+                }
                 className="w-full rounded-lg bg-gradient-to-r from-yellow-500 to-amber-600 py-2.5 font-medium text-black disabled:opacity-60"
               >
-                {bnbIsConfirming ? "Confirming…" : isPendingBNB ? "Waiting wallet…" : "Buy with BNB"}
+                {bnbIsConfirming
+                  ? "Confirming…"
+                  : isPendingBNB
+                  ? "Waiting wallet…"
+                  : "Buy with BNB"}
               </button>
+              {bnbOverCap && (
+                <div className="text-xs text-red-400">
+                  Amount exceeds 80% of your BNB balance.
+                </div>
+              )}
+              {bnbBuyGasCostWei && (
+                <div className="text-xs text-white/70">
+                  Estimated gas: ~{Number(formatEther(bnbBuyGasCostWei)).toFixed(6)} BNB
+                  {bnbBuyGasCostPaddedWei
+                    ? ` (+${Number(GAS_PAD_PCT)}%: ${Number(formatEther(bnbBuyGasCostPaddedWei)).toFixed(6)} BNB)`
+                    : ""}
+                  . Consider keeping a minimum for gas.
+                </div>
+              )}
               {bnbError && (
                 <div className="text-xs text-red-400 break-all">{bnbError}</div>
               )}
@@ -696,7 +676,6 @@ function ClientContent() {
           {/* USDT Purchase */}
           <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
             <h2 className="text-lg font-medium">Buy with USDT</h2>
-            {/* <p className="mt-1 text-sm text-white/70">Masukkan jumlah USDT untuk dibelanjakan. Pastikan baki BNB mencukupi untuk membayar gas. Baki supply: {availableSupplyWei !== null ? Number(formatEther(availableSupplyWei)).toLocaleString() : "—"} CXG.</p> */}
             <div className="mt-4 space-y-3">
               <input
                 value={usdtIn}
@@ -705,45 +684,56 @@ function ClientContent() {
                 className="w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 outline-none focus:ring-2 focus:ring-yellow-600"
               />
               <div className="text-sm text-white/80">
-                {usdtGrossTokens > 0n ? (
-                  <>You will receive ~{Number(formatEther(usdtNetTokens)).toLocaleString()} {TOKEN_SYMBOL} (net)</>
-                ) : (
-                  <>—</>
-                )}
+                {usdtGrossTokens > 0n
+                  ? <>You will receive ~{Number(formatEther(usdtNetTokens)).toLocaleString()} {TOKEN_SYMBOL} (net)</>
+                  : <>—</>}
               </div>
-              {/* {usdtMaxBySupplyWei !== null && (
-                <div className="flex items-center justify-between text-xs text-white/70">
-                  <div>Max by supply: {Number(formatEther(usdtMaxBySupplyWei)).toFixed(6)} USDT</div>
-                  <button type="button" onClick={() => setUsdtIn(Number(formatEther(usdtMaxBySupplyWei!)).toFixed(6))} className="rounded bg-white/10 px-2 py-1 text-white hover:bg-white/20">Max by supply</button>
-                </div>
-              )} */}
-              {/* {usdtTotalGasCostWei && (
-                <div className="text-xs text-white/70">Gas required (approve + buy): ~{Number(formatEther(usdtTotalGasCostWei)).toFixed(6)} BNB {usdtTotalGasCostPaddedWei ? `(+${Number(GAS_PAD_PCT)}%: ${Number(formatEther(usdtTotalGasCostPaddedWei)).toFixed(6)} BNB)` : ''}</div>
-              )} */}
-              {usdtExceedsSupply && (
-                <div className="text-xs text-red-400">Requested {TOKEN_SYMBOL} exceeds available supply.</div>
-              )}
               {!hasEnoughBnbForUsdtGas && (
-                <div className="text-xs text-red-400">Insufficient BNB for gas. Add BNB or reduce the USDT amount.</div>
+                <div className="text-xs text-red-400">
+                  Insufficient BNB for gas. Add BNB or reduce the USDT amount.
+                </div>
+              )}
+              {hasSomeUsdt && usdtAmt > 0n && !hasEnoughUsdt && (
+                <div className="text-xs text-red-400">
+                  Insufficient USDT for this amount.
+                </div>
               )}
               <button
                 onClick={handleBuyUSDT}
-                disabled={!isConnected || usdtAmt <= 0n || isPendingUSDT || approveConfirming || buyUsdtConfirming || !hasEnoughBnbForUsdtGas || usdtExceedsSupply}
+                disabled={
+                  !isConnected ||
+                  usdtAmt <= 0n ||
+                  isPendingUSDT ||
+                  approveConfirming ||
+                  buyUsdtConfirming ||
+                  !hasEnoughBnbForUsdtGas ||
+                  !hasSomeUsdt ||
+                  !hasEnoughUsdt
+                }
                 className="w-full rounded-lg bg-gradient-to-r from-yellow-500 to-amber-600 py-2.5 font-medium text-black disabled:opacity-60"
               >
-                {buyUsdtConfirming || approveConfirming ? "Confirming…" : isPendingUSDT ? "Waiting wallet…" : "Approve & Buy USDT"}
+                {buyUsdtConfirming || approveConfirming
+                  ? "Confirming…"
+                  : isPendingUSDT
+                  ? "Waiting wallet…"
+                  : "Approve & Buy USDT"}
               </button>
               {usdtError && (
                 <div className="text-xs text-red-400 break-all">{usdtError}</div>
               )}
               {(approveConfirmed || buyUsdtConfirmed) && (
-                <div className="text-xs text-green-400">{buyUsdtConfirmed ? "Purchase confirmed." : "Approval confirmed."}</div>
+                <div className="text-xs text-green-400">
+                  {buyUsdtConfirmed
+                    ? "Purchase confirmed."
+                    : "Approval confirmed."}
+                </div>
               )}
             </div>
           </div>
         </div>
 
-        <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/80">
+        {/* Transaction status */}
+        <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/80">
           <h3 className="text-base font-medium mb-2">Transaction status</h3>
           <div className="space-y-2 text-xs">
             {/* BNB status */}
@@ -753,17 +743,53 @@ function ClientContent() {
                 {isPendingBNB && !bnbHash ? (
                   <>Waiting for wallet…</>
                 ) : bnbIsConfirming ? (
-                  <>Confirming on-chain… {bnbHash && (<a className="underline text-yellow-400 ml-1" href={`https://bscscan.com/tx/${bnbHash}`} target="_blank" rel="noreferrer">View</a>)}</>
+                  <>
+                    Confirming on-chain…
+                    {bnbHash && (
+                      <a
+                        className="underline text-yellow-400 ml-1"
+                        href={`https://bscscan.com/tx/${bnbHash}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        View
+                      </a>
+                    )}
+                  </>
                 ) : bnbIsConfirmed ? (
-                  <>Confirmed {bnbHash && (<a className="underline text-yellow-400 ml-1" href={`https://bscscan.com/tx/${bnbHash}`} target="_blank" rel="noreferrer">View</a>)}</>
+                  <>
+                    Confirmed
+                    {bnbHash && (
+                      <a
+                        className="underline text-yellow-400 ml-1"
+                        href={`https://bscscan.com/tx/${bnbHash}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        View
+                      </a>
+                    )}
+                  </>
                 ) : bnbHash ? (
-                  <>Submitted {bnbHash && (<a className="underline text-yellow-400 ml-1" href={`https://bscscan.com/tx/${bnbHash}`} target="_blank" rel="noreferrer">View</a>)}</>
+                  <>
+                    Submitted
+                    {bnbHash && (
+                      <a
+                        className="underline text-yellow-400 ml-1"
+                        href={`https://bscscan.com/tx/${bnbHash}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        View
+                      </a>
+                    )}
+                  </>
                 ) : (
                   <>Idle</>
                 )}
               </div>
             </div>
-            {/* USDT status */}
+            {/* USDT approval status */}
             <div>
               <div className="text-white/60">USDT approval</div>
               <div className="text-white/90">
@@ -771,27 +797,88 @@ function ClientContent() {
                   <>Waiting for wallet…</>
                 ) : approveHash ? (
                   approveConfirming ? (
-                    <>Confirming… <a className="underline text-yellow-400 ml-1" href={`https://bscscan.com/tx/${approveHash}`} target="_blank" rel="noreferrer">View</a></>
+                    <>
+                      Confirming…
+                      <a
+                        className="underline text-yellow-400 ml-1"
+                        href={`https://bscscan.com/tx/${approveHash}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        View
+                      </a>
+                    </>
                   ) : approveConfirmed ? (
-                    <>Confirmed <a className="underline text-yellow-400 ml-1" href={`https://bscscan.com/tx/${approveHash}`} target="_blank" rel="noreferrer">View</a></>
+                    <>
+                      Confirmed
+                      <a
+                        className="underline text-yellow-400 ml-1"
+                        href={`https://bscscan.com/tx/${approveHash}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        View
+                      </a>
+                    </>
                   ) : (
-                    <>Submitted <a className="underline text-yellow-400 ml-1" href={`https://bscscan.com/tx/${approveHash}`} target="_blank" rel="noreferrer">View</a></>
+                    <>
+                      Submitted
+                      <a
+                        className="underline text-yellow-400 ml-1"
+                        href={`https://bscscan.com/tx/${approveHash}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        View
+                      </a>
+                    </>
                   )
                 ) : (
                   <>Idle</>
                 )}
               </div>
             </div>
+            {/* USDT purchase status */}
             <div>
               <div className="text-white/60">USDT purchase</div>
               <div className="text-white/90">
                 {buyUsdtHash ? (
                   buyUsdtConfirming ? (
-                    <>Confirming… <a className="underline text-yellow-400 ml-1" href={`https://bscscan.com/tx/${buyUsdtHash}`} target="_blank" rel="noreferrer">View</a></>
+                    <>
+                      Confirming…
+                      <a
+                        className="underline text-yellow-400 ml-1"
+                        href={`https://bscscan.com/tx/${buyUsdtHash}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        View
+                      </a>
+                    </>
                   ) : buyUsdtConfirmed ? (
-                    <>Confirmed <a className="underline text-yellow-400 ml-1" href={`https://bscscan.com/tx/${buyUsdtHash}`} target="_blank" rel="noreferrer">View</a></>
+                    <>
+                      Confirmed
+                      <a
+                        className="underline text-yellow-400 ml-1"
+                        href={`https://bscscan.com/tx/${buyUsdtHash}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        View
+                      </a>
+                    </>
                   ) : (
-                    <>Submitted <a className="underline text-yellow-400 ml-1" href={`https://bscscan.com/tx/${buyUsdtHash}`} target="_blank" rel="noreferrer">View</a></>
+                    <>
+                      Submitted
+                      <a
+                        className="underline text-yellow-400 ml-1"
+                        href={`https://bscscan.com/tx/${buyUsdtHash}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        View
+                      </a>
+                    </>
                   )
                 ) : (
                   <>Idle</>
@@ -801,7 +888,7 @@ function ClientContent() {
           </div>
         </div>
 
-        {/* Transactions */}
+        {/* Recent transactions */}
         <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-6">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-medium">Recent transactions</h2>
@@ -815,59 +902,47 @@ function ClientContent() {
                 <div key={tx.id} className="py-2 flex items-center justify-between">
                   <div>
                     <div className="font-medium">{tx.type}</div>
-                    <div className="text-white/60">{tx.inputCurrency ?? ""} {tx.inputAmount ?? ""} → {TOKEN_SYMBOL} ~{tx.cxgExpected ?? ""}</div>
+                    <div className="text-white/60">
+                      {tx.inputCurrency ?? ""} {tx.inputAmount ?? ""} → {TOKEN_SYMBOL} ~{tx.cxgExpected ?? ""}
+                    </div>
                   </div>
-                  <a href={`https://bscscan.com/tx/${tx.hash}`} target="_blank" rel="noreferrer" className="text-yellow-400 hover:underline">View</a>
+                  <a
+                    href={`https://bscscan.com/tx/${tx.hash}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-yellow-400 hover:underline"
+                  >
+                    View
+                  </a>
                 </div>
               ))
             )}
           </div>
         </div>
 
+        {/* Last success */}
         {lastSuccess && (
           <div className="mt-4 rounded-2xl border border-green-700/40 bg-green-900/20 p-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium text-green-300">Last successful transaction</h3>
-              <a href={`https://bscscan.com/tx/${lastSuccess.tx.hash}`} target="_blank" rel="noreferrer" className="text-xs text-green-300 underline">View</a>
+              <a
+                href={`https://bscscan.com/tx/${lastSuccess.tx.hash}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs text-green-300 underline"
+              >
+                View
+              </a>
             </div>
             <div className="mt-2 text-xs text-white/80">
               <div>Type: {lastSuccess.tx.type}</div>
               <div>Input: {lastSuccess.tx.inputCurrency} {lastSuccess.tx.inputAmount}</div>
               <div>Expected {TOKEN_SYMBOL}: {lastSuccess.tx.cxgExpected}</div>
-              {lastSuccess.meta?.blockNumber && (<div>Block: {lastSuccess.meta.blockNumber}</div>)}
-              {lastSuccess.meta?.gasUsed && (<div>Gas used: {lastSuccess.meta.gasUsed}</div>)}
+              {lastSuccess.meta?.blockNumber && <div>Block: {lastSuccess.meta.blockNumber}</div>}
+              {lastSuccess.meta?.gasUsed && <div>Gas used: {lastSuccess.meta.gasUsed}</div>}
             </div>
           </div>
         )}
-
-        {/* CXG+/BNB Chart (live via GeckoTerminal API) */}
-        <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-6">
-          <h2 className="text-base font-medium">{TOKEN_SYMBOL}/BNB Chart</h2>
-          <GeckoOhlcvChart pool="0xcf63a6F26090E9807e49dBa79D764Ac48C88d597" interval="1h" limit={72} />
-          <div className="mt-3 text-xs text-white/60">
-            Pair:
-            <a
-              href="https://bscscan.com/address/0xcf63a6F26090E9807e49dBa79D764Ac48C88d597"
-              target="_blank"
-              rel="noreferrer"
-              className="ml-1 underline text-yellow-400"
-            >0xcf63a6F26090E9807e49dBa79D764Ac48C88d597</a>
-            <span className="mx-1">•</span>
-            <a
-              href="https://pancakeswap.finance/info/v2/pairs/0xcf63a6F26090E9807e49dBa79D764Ac48C88d597"
-              target="_blank"
-              rel="noreferrer"
-              className="underline text-yellow-400"
-            >View on PancakeSwap</a>
-            <span className="mx-1">•</span>
-            <a
-              href="https://www.geckoterminal.com/bsc/pools/0xcf63a6F26090E9807e49dBa79D764Ac48C88d597"
-              target="_blank"
-              rel="noreferrer"
-              className="underline text-yellow-400"
-            >GeckoTerminal</a>
-          </div>
-        </div>
 
         {/* Quick links */}
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -880,7 +955,7 @@ function ClientContent() {
             <div className="mt-1 text-sm text-white/70">Stake your {TOKEN_SYMBOL} to earn rewards.</div>
           </Link>
           <a
-            href="https://pancakeswap.finance/swap?outputCurrency=BNB&inputCurrency=0x23fD60a35ad878D4e74C8F4534d4Bd55bBcCD002"
+            href={`https://pancakeswap.finance/swap?outputCurrency=BNB&inputCurrency=${CXG}`}
             target="_blank"
             rel="noreferrer"
             className="rounded-2xl border border-white/10 bg-white/5 p-6 hover:bg-white/10"
@@ -890,14 +965,14 @@ function ClientContent() {
           </a>
         </div>
 
+        {/* Back link */}
         <div className="mt-6 text-sm text-white/70">
           <Link href="/" className="hover:underline">← Back to home</Link>
         </div>
       </div>
-  </div>
+    </div>
   );
 }
-
 export default function ClientArea() {
   return (
     <Providers>

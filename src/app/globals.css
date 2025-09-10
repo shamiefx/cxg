@@ -18,7 +18,22 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, Apple Color Emoji, Segoe UI Emoji;
 }
+/* Prevent horizontal scroll */
+html, body { overflow-x: hidden; }
+
+/* Smooth anchor scrolling for in-page navigation */
+html { scroll-behavior: smooth; }
 
 /* Utility helpers */
 .container { max-width: 72rem; margin-inline: auto; padding-inline: 1.5rem; }
+/* Avoid elements growing wider than viewport */
+* { box-sizing: border-box; max-width: 100vw; }
+
+/* Mobile ergonomics */
+@media (max-width: 640px) {
+  input, select, textarea, button { font-size: 16px; }
+  button { min-height: 44px; }
+  /* Wallet page wants compact buttons */
+  .wallet button { min-height: 36px; }
+}
 

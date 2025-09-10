@@ -106,6 +106,59 @@ const [net, r1, r2, r3] = await sale.quoteReferralSplit(gross);
 
 ---
 
+## 3.1) Balances (in the DApp)
+
+The Balances panel shows the connected wallet’s balances and the token supply. Below is the equivalent using ethers v6:
+
+```js
+import { ethers, formatUnits } from "ethers";
+
+const provider = new ethers.BrowserProvider(window.ethereum);
+const signer = await provider.getSigner();
+const user = await signer.getAddress();
+
+const USDT = "0x55d398326f99059fF775485246999027B3197955"; // 18 decimals on BSC
+const CXGP = "0xA63F08a32639689DfF7b89FC5C12fF89dC687B34"; // from env in the app
+
+const ERC20_ABI = [
+  "function decimals() view returns (uint8)",
+  "function balanceOf(address) view returns (uint256)",
+  "function totalSupply() view returns (uint256)",
+];
+
+// BNB (native)
+const bnbWei = await provider.getBalance(user);
+const bnb = formatUnits(bnbWei, 18); // e.g., 0.0001
+
+// USDT (ERC-20, 18d on BSC)
+const usdt = new ethers.Contract(USDT, ERC20_ABI, provider);
+const usdtBal = formatUnits(await usdt.balanceOf(user), 18); // e.g., 0.0000
+
+// CXGP (ERC-20)
+const cxgp = new ethers.Contract(CXGP, ERC20_ABI, provider);
+const cxgpBal = formatUnits(await cxgp.balanceOf(user), 18); // e.g., 9,999,978.9183
+
+// Supply (token total supply)
+const supply = formatUnits(await cxgp.totalSupply(), 18); // e.g., 10,000,000.0000
+```
+
+In the app, values are formatted to 4 decimals. To see real numbers:
+- Set token/sale envs in `.env` and rebuild the app.
+- Connect a wallet on BSC Mainnet.
+
+Display formatting (4 decimals, thousands separator):
+
+```js
+const fmt4 = (valueString) =>
+  new Intl.NumberFormat("en-US", { minimumFractionDigits: 4, maximumFractionDigits: 4 })
+    .format(Number(valueString));
+
+console.log("BNB", fmt4(bnb));        // e.g., BNB 0.0001
+console.log("USDT", fmt4(usdtBal));   // e.g., USDT 0.0000
+console.log("CXGP", fmt4(cxgpBal));   // e.g., CXGP 9,999,978.9183
+console.log("Supply", fmt4(supply));  // e.g., Supply 10,000,000.0000
+```
+
 ## 4) Hardhat Usage
 
 ### Install
@@ -117,8 +170,8 @@ npm i
 Create `.env`:
 ```
 BSC_RPC=https://bsc-dataseed.binance.org/
-PRIVATE_KEY=0xYOUR_PRIVATE_KEY
-BSCSCAN_KEY=YourBscScanApiKey
+PRIVATE_KEY=0xYOUR_PRIVATE_KEY 
+BSCSCAN_KEY=<YOUR_BSCSCAN_KEY>
 ADMIN=0x4d3E834cF6a6b8ACC54cd96270b0a23065E63B68
 TOKEN=0xA63F08a32639689DfF7b89FC5C12fF89dC687B34
 USDT=0x55d398326f99059fF775485246999027B3197955

@@ -25,27 +25,33 @@ export default function RegisterPage() {
         const url = new URL(window.location.href);
         const ref = url.searchParams.get("ref") || url.searchParams.get("referral");
         if (ref) {
-          // Treat ref as UID only; optimistically mark valid
           setReferral(ref);
-          setInviterUid(ref);
-          setRefStatus("valid");
-          // Best-effort fetch inviter display name (may be denied by security rules)
+          setRefStatus("resolving");
           (async () => {
             try {
               const { db } = getFirebase();
               const snap = await getDoc(doc(db, "users", ref));
               if (snap.exists()) {
                 const data = snap.data() as { displayName?: string; email?: string } | undefined;
+                setInviterUid(ref);
                 setInviterName(data?.displayName || data?.email || null);
+                setRefStatus("valid");
+              } else {
+                setInviterUid(null);
+                setRefStatus("invalid");
               }
             } catch {
-              // ignore read errors; keep referral as valid based on UID
+              // Treat read errors as invalid to avoid spoofed referrals
+              setInviterUid(null);
+              setRefStatus("invalid");
             }
           })();
         } else {
           setRefStatus("required");
         }
-      } catch {}
+      } catch {
+        setRefStatus("invalid");
+      }
     }
   }, []);
 
@@ -61,7 +67,7 @@ export default function RegisterPage() {
       return;
     }
     if (refStatus !== "valid" || !inviterUid) {
-      setError("A valid referral is required. Please register using a member's invite link.");
+      setError("Referral not found or invalid. Please get the right person to guide you.");
       return;
     }
     setLoading(true);
@@ -143,7 +149,7 @@ export default function RegisterPage() {
                   <span className="text-green-400">Invited by {inviterName || "a CXG member"}</span>
                 )}
                 {refStatus === "invalid" && (
-                  <span className="text-red-300">Invalid referral. Please request a new invite link.</span>
+                  <span className="text-red-300">Referral not found. Please get the right person to guide you.</span>
                 )}
                 {refStatus === "required" && (
                   <span className="text-yellow-300">Referral required. Please use an invite link shared by a member.</span>

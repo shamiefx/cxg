@@ -20,23 +20,9 @@ export default function Home() {
                   Blockchain Infrastructure for Enterprises
                 </h1>
                 <p className="mt-5 text-pretty text-base text-white/80 sm:text-lg">
-                  Global leaders use the CXG+ platform to build their blockchain and stablecoin solutions —
-                  powered by the CXG+ token for utility and governance.
+                  Global leaders use the CXGP platform to build their blockchain and stablecoin solutions —
+                  powered by the CXGP token for utility and governance. Transparent, fast, and user‑friendly.
                 </p>
-                {/* <div className="mt-8 flex flex-col sm:flex-row gap-3">
-                  <Link
-                    href="/client"
-                    className="inline-flex items-center justify-center rounded-lg bg-white px-5 py-3 text-sm font-medium text-black hover:opacity-90"
-                  >
-                    Buy CXG
-                  </Link>
-                  <Link
-                    href="#pricing"
-                    className="inline-flex items-center justify-center rounded-lg border border-white/15 bg-white/5 px-5 py-3 text-sm font-medium text-white hover:bg-white/10"
-                  >
-                    See live market
-                  </Link>
-                </div> */}
                 <div className="mt-10 flex flex-wrap items-center gap-3 text-xs text-white/80">
                   {[
                     "Non‑custodial",
@@ -68,6 +54,77 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Transparency */}
+        <section className="mx-auto max-w-7xl px-6 py-16 md:py-24">
+          <div className="mx-auto max-w-3xl text-center">
+            <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">Transparency & Key Facts</h2>
+            <p className="mt-3 text-white/80">All the important details, open and clear — so you can decide with confidence.</p>
+          </div>
+          <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              { title: "Token Contract", value: "0xA63F…7B34", href: "https://bscscan.com/token/0xA63F08a32639689DfF7b89FC5C12fF89dC687B34" },
+              { title: "Network", value: "BNB Chain (Mainnet)", href: "https://bscscan.com" },
+              { title: "Trading", value: "PancakeSwap (pair CXGP/BNB)", href: "https://pancakeswap.finance" },
+              { title: "Holders", value: "View on BscScan", href: "https://bscscan.com/token/0xA63F08a32639689DfF7b89FC5C12fF89dC687B34#holders" },
+              { title: "Supply", value: "Mint on‑demand (no hard cap)", href: "#" },
+              { title: "Audit & Code", value: "To be announced", href: "#" },
+            ].map(card => (
+              <a key={card.title} href={card.href} target="_blank" rel="noreferrer" className="rounded-2xl border border-white/10 bg-white/5 p-5 hover:bg-white/10">
+                <div className="text-xs text-white/60">{card.title}</div>
+                <div className="mt-1 text-sm">{card.value}</div>
+              </a>
+            ))}
+          </div>
+        </section>
+
+        {/* How it works */}
+        <section className="mx-auto max-w-7xl px-6 py-16">
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">How It Works</h2>
+            <p className="mt-3 text-white/80">Three simple steps to get started — clear and transparent.</p>
+          </div>
+          <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-3">
+            {[
+              { n: 1, t: "Connect your wallet", d: "Use MetaMask or a compatible wallet to connect to BNB Chain." },
+              { n: 2, t: "Buy CXGP", d: "Choose BNB or USDT, enter the amount, and review your estimated tokens." },
+              { n: 3, t: "Track your transactions", d: "Every transaction is recorded with links to BscScan." },
+            ].map(s => (
+              <div key={s.n} className="rounded-2xl border border-white/10 bg-white/5 p-6">
+                <div className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-sm">{s.n}</div>
+                <div className="mt-3 text-base font-medium">{s.t}</div>
+                <div className="mt-1 text-sm text-white/80">{s.d}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+    {/* FAQ & Disclaimer */}
+        <section className="mx-auto max-w-7xl px-6 pb-16 md:pb-24">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+        <h3 className="text-lg font-medium">FAQ</h3>
+              <div className="mt-4 space-y-3 text-sm text-white/80">
+                <div>
+          <div className="font-medium">Is CXGP supply limited?</div>
+          <div className="text-white/70">Tokens are minted on‑demand to support platform utility; there is no hard cap.</div>
+                </div>
+                <div>
+          <div className="font-medium">Which networks are supported?</div>
+          <div className="text-white/70">Currently BNB Chain (Mainnet). Additional networks will be announced.</div>
+                </div>
+                <div>
+          <div className="font-medium">How do you ensure transparency?</div>
+          <div className="text-white/70">On‑chain transactions, BscScan links, and holder counts are visible in the app.</div>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+        <h3 className="text-lg font-medium">Disclaimer</h3>
+        <p className="mt-3 text-sm text-white/70">The information on this site is for informational purposes only and not financial advice. Crypto assets are volatile. Do your own research and only use amounts you can afford to risk.</p>
+            </div>
+          </div>
+        </section>
+
         {/* Stats */}
         <section className="border-y border-white/10 bg-white/[0.02]">
           <div className="mx-auto max-w-7xl px-6 py-10 grid grid-cols-2 sm:grid-cols-4 gap-6 text-center">
@@ -88,8 +145,8 @@ export default function Home() {
         {/* Features */}
         <section id="solutions" className="mx-auto max-w-7xl px-6 py-16 md:py-24">
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">Meet the CXG+ Token</h2>
-            <p className="mt-3 text-white/80">CXG+ powers the platform as a utility and governance token — used for fees, access to enterprise features, staking rewards, and on‑chain voting on BNB Chain.</p>
+            <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">Meet the CXGP Token</h2>
+            <p className="mt-3 text-white/80">CXGP powers the platform as a utility and governance token — used for fees, access to enterprise features, staking rewards, and on‑chain voting on BNB Chain.</p>
           </div>
           <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {[
@@ -119,7 +176,7 @@ export default function Home() {
               },
               {
                 title: "Token utility",
-                desc: "Stake CXG+ for protocol rewards and participate in governance decisions.",
+                desc: "Stake CXGP for protocol rewards and participate in governance decisions.",
                 icon: (
                   <svg viewBox="0 0 24 24" className="h-5 w-5 text-yellow-400" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 4l2.5 4.9 5.4.8-3.9 3.8.9 5.4L12 16.6 7.1 19.9l.9-5.4L4.1 9.7l5.4-.8L12 4z" />
@@ -215,8 +272,8 @@ export default function Home() {
                 src: "https://www.tradingview-widget.com/embed-widget/mini-symbol-overview/?locale=en#%7B%22symbol%22%3A%22BINANCE%3ABNBUSDT%22%2C%22width%22%3A%22100%25%22%2C%22height%22%3A%22100%25%22%2C%22dateRange%22%3A%2212M%22%2C%22colorTheme%22%3A%22dark%22%2C%22isTransparent%22%3Atrue%2C%22autosize%22%3Atrue%2C%22largeChartUrl%22%3A%22%22%7D",
               },
               {
-                key: "CXG/BNB",
-                title: "CXG+/BNB — GeckoTerminal",
+                key: "CXGP/BNB",
+                title: "CXGP/BNB — GeckoTerminal",
                 src: "gecko", // sentinel to render custom chart
               },
             ].map((w) => (
@@ -245,10 +302,10 @@ export default function Home() {
         {/* CTA */}
         <section className="mx-auto max-w-6xl px-6 pb-20 md:pb-28">
           <div className="rounded-2xl border border-white/10 bg-gradient-to-r from-yellow-500/10 via-amber-600/10 to-yellow-500/10 p-8 md:p-12 text-center">
-            <h3 className="text-2xl font-semibold tracking-tight">Ready to own CXG?</h3>
+            <h3 className="text-2xl font-semibold tracking-tight">Ready to own CXGP?</h3>
             <p className="mt-2 text-white/80">Buy with BNB or USDT on BNB Chain. Connect your wallet, choose your amount, and you’re in.</p>
             <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Link href="/client" className="rounded-lg bg-white px-5 py-3 text-sm font-medium text-black">Buy CXG+ now</Link>
+              <Link href="/client" className="rounded-lg bg-white px-5 py-3 text-sm font-medium text-black">Buy CXGP now</Link>
               <Link href="#pricing" className="rounded-lg border border-white/15 bg-white/5 px-5 py-3 text-sm font-medium hover:bg-white/10">See live market</Link>
             </div>
           </div>
@@ -258,17 +315,11 @@ export default function Home() {
       {/* Footer */}
       <footer id="company" className="border-t border-white/10">
         <div className="mx-auto max-w-7xl px-6 py-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3">
-            <span className="inline-block h-8 w-8 rounded bg-gradient-to-br from-yellow-500 to-amber-700" />
-            <span className="font-semibold tracking-tight">CXG+</span>
-          </div>
           <nav className="flex gap-6 text-sm text-white/75">
             <Link href="#privacy" className="hover:text-white">Privacy</Link>
             <Link href="#terms" className="hover:text-white">Terms</Link>
-            <Link href="#status" className="hover:text-white">Status</Link>
-            <Link href="#help" className="hover:text-white">Help</Link>
           </nav>
-          <p className="text-xs text-white/60">© {new Date().getFullYear()} CXG+ Inc. All rights reserved.</p>
+          <p className="text-xs text-white/60">© {new Date().getFullYear()} CXG+. All rights reserved.</p>
         </div>
       </footer>
     </div>
