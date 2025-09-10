@@ -9,7 +9,7 @@
     "build:silent": "next build > /dev/null 2>&1",
     "build-and-dev": "npm run build --silent && npm run dev",
     "dev:after-build": "npm run build --silent && npm run dev",
-    "deploy:firebase": "npm run build:static && firebase deploy",
+  "deploy:firebase": "npm run build:static && firebase deploy",
     "start": "next start",
     "lint": "eslint"
   },
@@ -22,7 +22,7 @@
     "react-dom": "19.1.0",
     "react-hot-toast": "^2.4.1",
     "viem": "^2.37.3",
-    "wagmi": "^2.16.9"
+  "wagmi": "^2.16.9"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

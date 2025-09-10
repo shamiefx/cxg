@@ -138,3 +138,11 @@ body:has(#w3m-modal) {
   padding-right: 0 !important;
 }
 
+/* Hide RainbowKit Disconnect button on small screens */
+@media (max-width: 767px) {
+  [data-testid="rk-disconnect-button"],
+  button[data-testid="rk-disconnect-button"] {
+    display: none !important;
+  }
+}
+
